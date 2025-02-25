@@ -1,21 +1,18 @@
 package com.project.shopapp.dtos.responses;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.project.shopapp.models.User;
-import lombok.*;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.time.LocalDate;
 
-@Builder
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@Data
+@EqualsAndHashCode(callSuper = true)
 public class OrderResponse extends BaseResponse {
     private Long id;
 
     @JsonProperty("user_id")
-    private User user;
+    private UserResponse user;
 
     @JsonProperty("fullname")
     private String fullName;

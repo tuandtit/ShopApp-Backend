@@ -1,7 +1,6 @@
 package com.project.shopapp.dtos.responses;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.project.shopapp.models.OrderDetail;
 import lombok.*;
 
 @Builder
@@ -27,16 +26,4 @@ public class OrderDetailResponse {
     private Float totalMoneyOD;
 
     private String color;
-
-//    public static OrderDetailResponse fromOrderDetail(OrderDetail orderDetail) {
-//        return OrderDetailResponse.builder()
-//                .id(orderDetail.getId())
-//                .orderId(orderDetail.getOrder().getId())
-//                .productId(orderDetail.getProduct().getId())
-//                .price(orderDetail.getPrice())
-//                .numberOfProducts(orderDetail.getNumberOfProducts())
-//                .color(orderDetail.getColor())
-//                .totalMoneyOD(orderDetail.getTotalMoneyOD())
-//                .build();
-//    }
 }

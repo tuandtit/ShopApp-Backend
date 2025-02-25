@@ -1,8 +1,10 @@
 package com.project.shopapp.services.impl;
 
-import com.project.shopapp.dtos.requests.OrderDetailDTO;
+import com.project.shopapp.dtos.requests.OrderDetailRequest;
 import com.project.shopapp.dtos.responses.OrderDetailResponse;
-import com.project.shopapp.exceptions.DataNotFoundException;
+import com.project.shopapp.exceptions.AppException;
+import com.project.shopapp.exceptions.ErrorCode;
+import com.project.shopapp.mapper.OrderDetailMapper;
 import com.project.shopapp.models.Order;
 import com.project.shopapp.models.OrderDetail;
 import com.project.shopapp.models.Product;
@@ -10,57 +12,51 @@ import com.project.shopapp.repositories.OrderDetailRepository;
 import com.project.shopapp.repositories.OrderRepository;
 import com.project.shopapp.repositories.ProductRepository;
 import com.project.shopapp.services.OrderDetailService;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
+import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrderDetailServiceImpl implements OrderDetailService {
-    private final OrderRepository orderRepo;
-    private final OrderDetailRepository orderDetailRepo;
-    private final ProductRepository productRepo;
-    private final ModelMapper mapper;
+    OrderRepository orderRepo;
+    OrderDetailRepository orderDetailRepo;
+    ProductRepository productRepo;
+    OrderDetailMapper orderDetailMapper;
+
 
     @Override
-    public OrderDetailResponse createOrderDetail(OrderDetailDTO orderDetailDTO) throws DataNotFoundException {
-        Order order = existOrder(orderDetailDTO.getOrderId());
-        Product product = existProduct(orderDetailDTO.getProductId());
+    public OrderDetailResponse createOrderDetail(OrderDetailRequest orderDetailRequest) throws AppException {
+        Order order = existOrder(orderDetailRequest.getOrderId());
+        Product product = existProduct(orderDetailRequest.getProductId());
 
-        OrderDetail orderDetail = OrderDetail.builder()
-                .order(order)
-                .product(product)
-                .price(orderDetailDTO.getPrice())
-                .numberOfProducts(orderDetailDTO.getNumberOfProducts())
-                .color(orderDetailDTO.getColor())
-                .totalMoneyOD(orderDetailDTO.getTotalMoneyOD())
-                .build();
-        orderDetailRepo.save(orderDetail);
-        return mapper.map(orderDetail, OrderDetailResponse.class);
-    }
-
-    @Override
-    public OrderDetailResponse getOrderDetail(Long id) throws DataNotFoundException {
-        OrderDetail orderDetail = existOrderDetail(id);
-        return mapper.map(orderDetail, OrderDetailResponse.class);
-    }
-
-    @Override
-    public OrderDetailResponse updateOrderDetail(Long id, OrderDetailDTO orderDetailDTO) throws DataNotFoundException {
-        OrderDetail orderDetail = existOrderDetail(id);
-        Order order = existOrder(orderDetailDTO.getOrderId());
-        Product product = existProduct(orderDetailDTO.getProductId());
-
+        OrderDetail orderDetail = orderDetailMapper.toEntity(orderDetailRequest);
         orderDetail.setOrder(order);
         orderDetail.setProduct(product);
-        orderDetail.setPrice(orderDetailDTO.getPrice());
-        orderDetail.setNumberOfProducts(orderDetail.getNumberOfProducts());
-        orderDetail.setTotalMoneyOD(orderDetail.getTotalMoneyOD());
-        orderDetail.setColor(orderDetailDTO.getColor());
-        orderDetailRepo.save(orderDetail);
-        return mapper.map(orderDetail, OrderDetailResponse.class);
+
+        return orderDetailMapper.toResponseDto(orderDetailRepo.save(orderDetail));
+    }
+
+    @Override
+    public OrderDetailResponse getOrderDetail(Long id) {
+        return orderDetailMapper.toResponseDto(existOrderDetail(id));
+    }
+
+    @Override
+    public OrderDetailResponse updateOrderDetail(Long id, OrderDetailRequest orderDetailRequest) {
+        OrderDetail orderDetail = existOrderDetail(id);
+        Order order = existOrder(orderDetailRequest.getOrderId());
+        Product product = existProduct(orderDetailRequest.getProductId());
+
+        orderDetailMapper.update(orderDetailRequest, orderDetail);
+        orderDetail.setOrder(order);
+        orderDetail.setProduct(product);
+
+        return orderDetailMapper.toResponseDto(orderDetailRepo.save(orderDetail));
     }
 
     @Override
@@ -71,22 +67,22 @@ public class OrderDetailServiceImpl implements OrderDetailService {
     @Override
     public List<OrderDetailResponse> findByOrderId(Long orderId) {
         return orderDetailRepo.findByOrderId(orderId).stream()
-                .map(orderDetail -> mapper.map(orderDetail, OrderDetailResponse.class))
+                .map(orderDetailMapper::toResponseDto)
                 .toList();
     }
 
-    private Product existProduct(Long productId) throws DataNotFoundException {
+    private Product existProduct(Long productId) {
         return productRepo.findById(productId)
-                .orElseThrow(() -> new DataNotFoundException("Can not found product with id: " + productId));
+                .orElseThrow(() -> new AppException(ErrorCode.PRODUCT_NOT_FOUND));
     }
 
-    private Order existOrder(Long orderId) throws DataNotFoundException {
+    private Order existOrder(Long orderId) {
         return orderRepo.findById(orderId)
-                .orElseThrow(() -> new DataNotFoundException("Can not found order with id: " + orderId));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_NOT_FOUND));
     }
 
-    private OrderDetail existOrderDetail(Long orderDetailId) throws DataNotFoundException {
+    private OrderDetail existOrderDetail(Long orderDetailId) {
         return orderDetailRepo.findById(orderDetailId)
-                .orElseThrow(() -> new DataNotFoundException("Can not find order detail with id: " + orderDetailId));
+                .orElseThrow(() -> new AppException(ErrorCode.ORDER_DETAIL_NOT_FOUND));
     }
 }

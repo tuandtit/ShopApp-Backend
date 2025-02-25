@@ -2,21 +2,26 @@ package com.project.shopapp.dtos.requests;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.Set;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserDTO {
+public class UserRequest {
     @JsonProperty("fullname")
     private String fullName;
+
+    @JsonProperty("username")
+    @Size(min = 4, message = "USERNAME_INVALID")
+    private String username;
 
     @JsonProperty("phone_number")
     @NotBlank(message = "Phone number is required")
@@ -39,7 +44,5 @@ public class UserDTO {
     @JsonProperty("google_account_id")
     private Integer googleAccountId;
 
-    @JsonProperty("role_id")
-    @NotNull(message = "Role ID is required")
-    private Long roleId;
+    private Set<String> roles;
 }

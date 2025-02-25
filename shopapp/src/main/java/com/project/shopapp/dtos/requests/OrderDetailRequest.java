@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderDetailDTO {
+public class OrderDetailRequest {
     @JsonProperty("order_id")
     @Min(value = 1, message = "Order's ID must be > 0")
     private Long orderId;

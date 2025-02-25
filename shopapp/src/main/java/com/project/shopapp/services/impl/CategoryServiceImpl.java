@@ -1,6 +1,6 @@
 package com.project.shopapp.services.impl;
 
-import com.project.shopapp.dtos.requests.CategoryDTO;
+import com.project.shopapp.dtos.requests.CategoryRequest;
 import com.project.shopapp.models.Category;
 import com.project.shopapp.repositories.CategoryRepository;
 import com.project.shopapp.services.CategoryService;
@@ -15,9 +15,9 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepository categoryRepo;
 
     @Override
-    public Category createCategory(CategoryDTO categoryDTO) {
+    public Category createCategory(CategoryRequest categoryRequest) {
         Category newCategory = Category.builder()
-                .name(categoryDTO.getName())
+                .name(categoryRequest.getName())
                 .build();
         categoryRepo.save(newCategory);
         return newCategory;
@@ -35,9 +35,9 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public Category updateCategory(Long categoryId, CategoryDTO categoryDTO) {
+    public Category updateCategory(Long categoryId, CategoryRequest categoryRequest) {
         Category existingCategory = getCategoryById(categoryId);
-        existingCategory.setName(categoryDTO.getName());
+        existingCategory.setName(categoryRequest.getName());
         categoryRepo.save(existingCategory);
         return existingCategory;
     }

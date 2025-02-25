@@ -1,6 +1,6 @@
 package com.project.shopapp.controllers;
 
-import com.project.shopapp.dtos.requests.CategoryDTO;
+import com.project.shopapp.dtos.requests.CategoryRequest;
 import com.project.shopapp.models.Category;
 import com.project.shopapp.services.CategoryService;
 import jakarta.validation.Valid;
@@ -21,7 +21,7 @@ public class CategoryController {
 
     @PostMapping("")
     public ResponseEntity<?> createCategory(
-            @Valid @RequestBody CategoryDTO categoryDTO,
+            @Valid @RequestBody CategoryRequest categoryRequest,
             BindingResult result
     ) {
         if (result.hasErrors()) {
@@ -31,8 +31,8 @@ public class CategoryController {
                     .toList();
             return ResponseEntity.badRequest().body(errorMessages);
         }
-        categoryService.createCategory(categoryDTO);
-        return ResponseEntity.ok("This is insertCategory " + categoryDTO);
+        categoryService.createCategory(categoryRequest);
+        return ResponseEntity.ok("This is insertCategory " + categoryRequest);
     }
 
     @GetMapping("")
@@ -47,9 +47,9 @@ public class CategoryController {
     @PutMapping("/{id}")
     public ResponseEntity<String> updateCategory(
             @PathVariable("id") Long id,
-            @Valid @RequestBody CategoryDTO categoryDTO
+            @Valid @RequestBody CategoryRequest categoryRequest
     ) {
-        categoryService.updateCategory(id, categoryDTO);
+        categoryService.updateCategory(id, categoryRequest);
         return ResponseEntity.ok("update");
     }
 

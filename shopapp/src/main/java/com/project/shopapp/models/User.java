@@ -2,8 +2,10 @@ package com.project.shopapp.models;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.util.Date;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
@@ -12,36 +14,39 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class User extends BaseEntity{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    Long id;
+
+    @Column(name = "username", unique = true, columnDefinition = "VARCHAR(255) COLLATE utf8mb4_unicode_ci")
+    String username;
 
     @Column(name = "fullname", length = 100)
-    private String fullName;
+    String fullName;
 
-    @Column(name = "phone_number", length = 10, nullable = false)
-    private String phoneNumber;
+    @Column(name = "phone_number", length = 10)
+    String phoneNumber;
 
     @Column(name = "address", length = 200)
-    private String address;
+    String address;
 
     @Column(name = "password", length = 200)
-    private String password;
+    String password;
 
     @Column(name = "is_active")
-    private Boolean active;
+    Boolean active;
 
     @Column(name = "date_of_birth")
-    private Date dateOfBirth;
+    Date dateOfBirth;
 
     @Column(name = "facebook_account_id")
-    private Integer facebookAccountId;
+    Integer facebookAccountId;
 
     @Column(name = "google_account_id")
-    private Integer googleAccountId;
+    Integer googleAccountId;
 
-    @ManyToOne
-    @JoinColumn(name = "role_id")
-    private Role role;
+    @ManyToMany
+    Set<Role> roles;
 }

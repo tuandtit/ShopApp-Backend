@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class CategoryDTO {
+public class CategoryRequest {
     @NotEmpty(message = "Category name cannot be empty")
     private String name;
 }

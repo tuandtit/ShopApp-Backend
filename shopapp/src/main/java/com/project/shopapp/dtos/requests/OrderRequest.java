@@ -1,7 +1,6 @@
 package com.project.shopapp.dtos.requests;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.persistence.Column;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -10,12 +9,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.Date;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class OrderDTO {
+public class OrderRequest {
     @Min(value = 1, message = "User's id must be > 0")
     @JsonProperty("user_id")
     private Long userId;

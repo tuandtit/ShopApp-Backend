@@ -1,10 +1,26 @@
 package com.project.shopapp.services;
 
-import com.project.shopapp.dtos.requests.UserDTO;
-import com.project.shopapp.exceptions.DataNotFoundException;
-import com.project.shopapp.models.User;
+import com.project.shopapp.dtos.requests.UserRequest;
+import com.project.shopapp.dtos.responses.UserResponse;
+import org.springframework.security.access.prepost.PostAuthorize;
+import org.springframework.security.access.prepost.PreAuthorize;
+
+import java.util.List;
 
 public interface UserService {
-    User createUser(UserDTO userDTO) throws DataNotFoundException;
-    String login(String phoneNumber, String password);
+    UserResponse createUser(UserRequest request);
+
+    UserResponse getMyInfo();
+
+    @PostAuthorize("returnObject.username == authentication.name")
+    UserResponse updateUser(Long userId, UserRequest request);
+
+    void deleteUser(Long userId);
+
+    @PreAuthorize("hasRole('ADMIN')")
+    //    @PreAuthorize("hasAuthority('APPROVE_POST')")
+    List<UserResponse> getUsers();
+
+    @PreAuthorize("hasRole('ADMIN')")
+    UserResponse getUser(Long id);
 }
