@@ -1,182 +1,185 @@
 package com.project.shopapp.services.impl;
 
-import com.nimbusds.jose.*;
-import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import com.project.shopapp.dtos.requests.AuthenticationRequest;
-import com.project.shopapp.dtos.requests.IntrospectRequest;
-import com.project.shopapp.dtos.requests.LogoutRequest;
-import com.project.shopapp.dtos.requests.RefreshRequest;
-import com.project.shopapp.dtos.responses.AuthenticationResponse;
-import com.project.shopapp.dtos.responses.IntrospectResponse;
-import com.project.shopapp.exceptions.AppException;
-import com.project.shopapp.exceptions.ErrorCode;
-import com.project.shopapp.models.InvalidatedToken;
-import com.project.shopapp.models.User;
-import com.project.shopapp.repositories.InvalidatedTokenRepository;
-import com.project.shopapp.repositories.UserRepository;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.project.shopapp.common.enums.AuthProvider;
+import com.project.shopapp.common.enums.ERole;
+import com.project.shopapp.dtos.AccountDto;
+import com.project.shopapp.dtos.requests.SignInGoogleRequest;
+import com.project.shopapp.dtos.requests.SignInRequest;
+import com.project.shopapp.dtos.requests.SignUpRequest;
+import com.project.shopapp.exceptions.BusinessException;
+import com.project.shopapp.mapper.AccountMapper;
+import com.project.shopapp.models.Account;
+import com.project.shopapp.models.RefreshTokenEntity;
+import com.project.shopapp.models.Role;
+import com.project.shopapp.repositories.AccountRepository;
+import com.project.shopapp.repositories.RefreshTokenRepository;
+import com.project.shopapp.repositories.RoleRepository;
+import com.project.shopapp.security.jwt.TokenProvider;
 import com.project.shopapp.services.AuthenticationService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.text.ParseException;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.List;
+
+import static com.project.shopapp.common.constant.AppConstant.PASSWORD_DEFAULT;
+
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationServiceImpl implements AuthenticationService {
-    UserRepository userRepo;
-    InvalidatedTokenRepository invalidatedTokenRepo;
+    //Other
     PasswordEncoder passwordEncoder;
+    AuthenticationManagerBuilder authenticationManagerBuilder;
+    TokenProvider tokenProvider;
 
-    @NonFinal
-    @Value("${jwt.signerKey}")
-    protected String SIGNER_KEY;
+    //Repository
+    AccountRepository accountRepository;
+    RoleRepository roleRepository;
+    RefreshTokenRepository refreshTokenRepository;
 
-    @NonFinal
-    @Value("${jwt.valid-duration}")
-    protected long VALID_DURATION;
-
-    @NonFinal
-    @Value("${jwt.refreshable-duration}")
-    protected long REFRESHABLE_DURATION;
+    //Mapper
+    AccountMapper accountMapper;
 
     @Override
-    public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
-        boolean isValid = true;
+    public AccountDto signUp(SignUpRequest request) {
+        if(accountRepository.existsByUsername(request.username())) {
+            throw new BusinessException(String.valueOf(HttpStatus.BAD_REQUEST.value()), "Username is already in use");
+        }
+        final var entity = accountMapper.toEntity(request);
+        Role role = roleRepository.findByName(ERole.USER).orElse(new Role(ERole.USER));
+        entity.setPasswordHash(passwordEncoder.encode(request.password()));
+        entity.addRole(role);
+        return accountMapper.toDto(accountRepository.save(entity));
+    }
+
+    @Override
+    public AccountDto signIn(SignInRequest request, HttpServletResponse response) {
+        final var usernamePasswordAuthenticationToken = new UsernamePasswordAuthenticationToken(
+                request.username(),
+                request.password()
+        );
+
+        final var authentication = authenticationManagerBuilder.getObject().authenticate(usernamePasswordAuthenticationToken);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        final var jwtAccessToken = tokenProvider.createToken(authentication);
+        final var jwtRefreshToken = tokenProvider.createRefreshToken(authentication);
+
+        final var username = tokenProvider.getUserName(jwtAccessToken);
+        final var account = accountRepository.findByUsername(username)
+                .orElseThrow(() -> {
+                    log.error("[SignInService:signIn] Account :{} not found", username);
+                    return new ResponseStatusException(HttpStatus.NOT_FOUND, "ACCOUNT NOT FOUND");
+                });
+
+        updateRevokedRefreshToken(account);
+
+        //Let's save the refreshToken as well
+        saveRefreshToken(account, jwtRefreshToken);
+        //Creating the cookie
+        createRefreshTokenCookie(response, jwtRefreshToken);
+
+        return accountMapper.toDto(jwtAccessToken, jwtRefreshToken);
+    }
+
+    @Override
+    public AccountDto signInGoogle(SignInGoogleRequest request, HttpServletResponse response) {
         try {
-            verifyToken(request.getToken(), false);
-        } catch (AppException exception) {
-            isValid = false;
-        }
+            FirebaseAuth.getInstance().verifyIdToken(request.getGoogleToken());
+            final var email = request.getEmail();
+            final var account = accountRepository.findByUsernameAndAuthProvider(email, AuthProvider.GOOGLE)
+                    .orElseGet(() -> createAccount(email, request.getAvatar()));
 
-        return IntrospectResponse.builder().valid(isValid).build();
-    }
+            final var authentication = tokenProvider.getAuthentication(account);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            final var jwtAccessToken = tokenProvider.createToken(authentication);
+            final var jwtRefreshToken = tokenProvider.createRefreshToken(authentication);
 
-    @Override
-    public AuthenticationResponse authenticate(AuthenticationRequest request) throws JOSEException {
-        log.info("SignKey: {}", SIGNER_KEY);
+            updateRevokedRefreshToken(account);
 
-        var user = userRepo.findByUsername(request.getUsername())
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+            saveRefreshToken(account, jwtRefreshToken);
 
-        boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
+            createRefreshTokenCookie(response, jwtRefreshToken);
 
-        if (!authenticated) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
+            return accountMapper.toDto(jwtAccessToken, jwtRefreshToken);
 
-        return AuthenticationResponse.builder()
-                .token(generateToken(user))
-                .authenticated(true)
-                .build();
-    }
-
-    @Override
-    public void logout(LogoutRequest request) throws ParseException, JOSEException {
-        try {
-            var signToken = verifyToken(request.getToken(), true);
-            disableToken(signToken);
-        } catch (AppException e) {
-            log.info("Token already expired");
+        } catch (FirebaseAuthException ex) {
+            throw new BadCredentialsException(ex.getMessage());
         }
     }
 
-    private void disableToken(SignedJWT signToken) throws ParseException {
-        String jit = signToken.getJWTClaimsSet().getJWTID();
-        Date expiryTime = signToken.getJWTClaimsSet().getExpirationTime();
-
-        InvalidatedToken invalidatedToken =
-                InvalidatedToken.builder().id(jit).expiryTime(expiryTime).build();
-
-        invalidatedTokenRepo.save(invalidatedToken);
-    }
-
-    private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
-        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-
-        SignedJWT signedJWT = SignedJWT.parse(token);
-
-        Date expiredTime = (isRefresh)
-                ? new Date(signedJWT
-                        .getJWTClaimsSet()
-                        .getIssueTime()
-                        .toInstant()
-                        .plus(REFRESHABLE_DURATION, ChronoUnit.SECONDS)
-                        .toEpochMilli())
-                : signedJWT.getJWTClaimsSet().getExpirationTime();
-        var verified = signedJWT.verify(verifier);
-
-        if (!(verified && expiredTime.after(new Date()))) throw new AppException(ErrorCode.UNAUTHENTICATED);
-
-        if (invalidatedTokenRepo.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-
-        return signedJWT;
-    }
-
     @Override
-    public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        var signJWT = verifyToken(request.getToken(), true);
+    public AccountDto accessTokenByRefreshToken(HttpServletRequest req) {
+        final var refreshToken = tokenProvider.resolveToken(req);
 
-        disableToken(signJWT);
+        if (ObjectUtils.isEmpty(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Please verify your token");
+        }
+        //Find refreshToken from database and should not be revoked : Same thing can be done through filter.
+        var refreshTokenEntity = refreshTokenRepository.findByRefreshToken(refreshToken)
+                .filter(tokens -> !tokens.isRevoked())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Refresh token revoked"));
 
-        var username = signJWT.getJWTClaimsSet().getSubject();
-        var user = userRepo.findByUsername(username).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        final var account = refreshTokenEntity.getAccount();
 
-        return AuthenticationResponse.builder()
-                .token(generateToken(user))
-                .authenticated(true)
-                .build();
+        updateRevokedRefreshToken(account);
+
+        //Now create the Authentication object
+        final var authentication = tokenProvider.getAuthentication(account);
+
+        //Use the authentication object to generate new jwt as the Authentication object that we will have may not contain correct role.
+        final var jwtAccessToken = tokenProvider.createToken(authentication);
+
+        return accountMapper.toDto(jwtAccessToken);
     }
 
-    private String generateToken(User user) throws JOSEException {
-        JWSHeader jwsHeader = new JWSHeader(JWSAlgorithm.HS512);
-
-        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
-                .issuer("devtuna.com")
-                .issueTime(new Date())
-                .expirationTime(new Date(
-                        Instant.now().plus(VALID_DURATION, ChronoUnit.SECONDS).toEpochMilli()))
-                .jwtID(UUID.randomUUID().toString())
-                .claim("scope", buildScope(user))
-                .build();
-
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-
-        JWSObject jwsObject = new JWSObject(jwsHeader, payload);
-
-        jwsObject.sign(new MACSigner(SIGNER_KEY.getBytes()));
-        return jwsObject.serialize();
+    private Account createAccount(String username, String avatar) {
+        final var account = new Account();
+        account.setUsername(username);
+        account.setAvatar(avatar);
+        account.setPasswordHash(passwordEncoder.encode(PASSWORD_DEFAULT));
+        account.setAuthProvider(AuthProvider.GOOGLE);
+        account.setRoles(List.of(roleRepository.findByName(ERole.USER).orElse(new Role(ERole.USER))));
+        return accountRepository.save(account);
     }
 
-    private String buildScope(User user) {
-        StringJoiner stringJoiner = new StringJoiner(" ");
+    private void updateRevokedRefreshToken(Account account) {
+        final var refreshTokenEntities =refreshTokenRepository.findByAccountAndRevoked(account, false);
+        refreshTokenEntities.forEach(refreshTokenEntity -> refreshTokenEntity.setRevoked(true));
 
-        if (!CollectionUtils.isEmpty(user.getRoles()))
-            user.getRoles().forEach(role -> {
-                stringJoiner.add("ROLE_" + role.getName());
-                if (!CollectionUtils.isEmpty(role.getPermissions())) {
-                    role.getPermissions().forEach(permission -> stringJoiner.add(permission.getName()));
-                }
-            });
+        refreshTokenRepository.saveAll(refreshTokenEntities);
+    }
 
-        return stringJoiner.toString();
+    private void createRefreshTokenCookie(final HttpServletResponse servletResponse, final Jwt jwt) {
+        final var refreshTokenCookie = new Cookie("refresh_token", jwt.getTokenValue());
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setSecure(true);
+        refreshTokenCookie.setMaxAge(15 * 24 * 60 * 60); // 15 day to seconds
+        servletResponse.addCookie(refreshTokenCookie);
+    }
+
+    private void saveRefreshToken(Account account, Jwt jwt) {
+        final var refreshTokenEntity = new RefreshTokenEntity();
+        refreshTokenEntity.setRefreshToken(jwt.getTokenValue());
+        refreshTokenEntity.setAccount(account);
+        refreshTokenRepository.save(refreshTokenEntity);
     }
 }

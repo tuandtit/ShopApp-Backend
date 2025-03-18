@@ -10,7 +10,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProductImage {
+public class ProductImage extends AbstractAuditing<Long> {
     public static final int MAXIMUM_IMAGES_PER_PRODUCT = 5;
 
     @Id

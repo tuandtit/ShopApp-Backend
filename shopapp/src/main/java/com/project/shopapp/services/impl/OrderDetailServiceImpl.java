@@ -38,12 +38,12 @@ public class OrderDetailServiceImpl implements OrderDetailService {
         orderDetail.setOrder(order);
         orderDetail.setProduct(product);
 
-        return orderDetailMapper.toResponseDto(orderDetailRepo.save(orderDetail));
+        return orderDetailMapper.toDto(orderDetailRepo.save(orderDetail));
     }
 
     @Override
     public OrderDetailResponse getOrderDetail(Long id) {
-        return orderDetailMapper.toResponseDto(existOrderDetail(id));
+        return orderDetailMapper.toDto(existOrderDetail(id));
     }
 
     @Override
@@ -56,7 +56,7 @@ public class OrderDetailServiceImpl implements OrderDetailService {
         orderDetail.setOrder(order);
         orderDetail.setProduct(product);
 
-        return orderDetailMapper.toResponseDto(orderDetailRepo.save(orderDetail));
+        return orderDetailMapper.toDto(orderDetailRepo.save(orderDetail));
     }
 
     @Override
@@ -67,7 +67,7 @@ public class OrderDetailServiceImpl implements OrderDetailService {
     @Override
     public List<OrderDetailResponse> findByOrderId(Long orderId) {
         return orderDetailRepo.findByOrderId(orderId).stream()
-                .map(orderDetailMapper::toResponseDto)
+                .map(orderDetailMapper::toDto)
                 .toList();
     }
 

@@ -1,14 +1,13 @@
 package com.project.shopapp.services;
 
 import com.project.shopapp.dtos.requests.CategoryRequest;
-import com.project.shopapp.models.Category;
-
-import java.util.List;
+import com.project.shopapp.dtos.responses.CategoryListResponse;
+import com.project.shopapp.dtos.responses.CategoryResponse;
 
 public interface CategoryService {
-    Category createCategory(CategoryRequest categoryRequest);
-    Category getCategoryById(Long id);
-    List<Category> getAllCategories();
-    Category updateCategory(Long categoryId, CategoryRequest categoryRequest);
-    void deleteCategory(Long id);
+    CategoryResponse createCategory(CategoryRequest categoryRequest);
+    CategoryResponse getCategoryById(Long id);
+    CategoryListResponse getCategories(int page, int limit);
+    CategoryResponse updateCategory(Long categoryId, CategoryRequest categoryRequest);
+    Boolean deleteCategory(Long id);
 }

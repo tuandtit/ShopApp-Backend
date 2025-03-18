@@ -13,5 +13,5 @@ import org.mapstruct.Mapping;
 public interface OrderDetailMapper extends EntityMapper<OrderDetail, OrderDetailRequest, OrderDetailResponse> {
     @Override
     @Mapping(target = "orderId", expression = "java(entity.getOrder().getId())")
-    OrderDetailResponse toResponseDto(OrderDetail entity);
+    OrderDetailResponse toDto(OrderDetail entity);
 }

@@ -1,7 +1,9 @@
 package com.project.shopapp.mapper;
 
+import org.mapstruct.MappingConstants;
+
 @org.mapstruct.MapperConfig(
-        componentModel = "spring"
+        componentModel = MappingConstants.ComponentModel.SPRING
 )
 public interface MapperConfig {
 }

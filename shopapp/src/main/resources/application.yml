@@ -19,10 +19,11 @@ spring:
       enabled: true
       max-file-size: 10MB
       max-request-size: 10MB
-api:
-  prefix: api/v1
 
 jwt:
-  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
-  valid-duration: 3600 # in second
-  refreshable-duration: 36000 # in seconds
+  expired: 15
+  rsa-private-key: classpath:certs/privateKey.pem
+  rsa-public-key: classpath:certs/publicKey.pem
+
+admin:
+  password: admin

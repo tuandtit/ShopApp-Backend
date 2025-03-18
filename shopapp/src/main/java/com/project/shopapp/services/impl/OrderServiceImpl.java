@@ -1,15 +1,15 @@
 package com.project.shopapp.services.impl;
 
+import com.project.shopapp.common.constant.OrderStatus;
 import com.project.shopapp.dtos.requests.OrderRequest;
 import com.project.shopapp.dtos.responses.OrderResponse;
 import com.project.shopapp.exceptions.AppException;
 import com.project.shopapp.exceptions.ErrorCode;
 import com.project.shopapp.mapper.OrderMapper;
+import com.project.shopapp.models.Account;
 import com.project.shopapp.models.Order;
-import com.project.shopapp.models.OrderStatus;
-import com.project.shopapp.models.User;
+import com.project.shopapp.repositories.AccountRepository;
 import com.project.shopapp.repositories.OrderRepository;
-import com.project.shopapp.repositories.UserRepository;
 import com.project.shopapp.services.OrderService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -23,18 +23,21 @@ import java.util.List;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class OrderServiceImpl implements OrderService {
-    UserRepository userRepo;
+    //Repo
+    AccountRepository accountRepo;
     OrderRepository orderRepo;
+
+    //Mapper
     OrderMapper orderMapper;
 
     @Override
     public OrderResponse createOrder(OrderRequest orderRequest) {
         //check su ton tai cua userId
-        User user = existingUser(orderRequest.getUserId());
+        Account account = existingUser(orderRequest.getUserId());
 
         //convert orderDTO => Order
         Order order = orderMapper.toEntity(orderRequest);
-        order.setUser(user);
+        order.setAccount(account);
         order.setOrderDate(LocalDate.now());
         order.setStatus(OrderStatus.PENDING);
 
@@ -44,22 +47,22 @@ public class OrderServiceImpl implements OrderService {
         }
 
         order.setActive(true);
-        return orderMapper.toResponseDto(orderRepo.save(order));
+        return orderMapper.toDto(orderRepo.save(order));
     }
 
     @Override
     public OrderResponse getOrder(Long id) {
-        return orderMapper.toResponseDto(existingOrder(id));
+        return orderMapper.toDto(existingOrder(id));
     }
 
     @Override
     public OrderResponse updateOrder(Long id, OrderRequest orderRequest) {
         Order existingOrder = existingOrder(id);
-        User existingUser = existingUser(orderRequest.getUserId());
+        Account existingAccount = existingUser(orderRequest.getUserId());
         orderMapper.update(orderRequest, existingOrder);
-        existingOrder.setUser(existingUser);
+        existingOrder.setAccount(existingAccount);
 
-        return orderMapper.toResponseDto(orderRepo.save(existingOrder));
+        return orderMapper.toDto(orderRepo.save(existingOrder));
     }
 
     @Override
@@ -73,14 +76,14 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderResponse> findByUserId(Long userId) {
-        return orderRepo.findByUserId(userId)
+        return orderRepo.findByAccountId(userId)
                 .stream()
-                .map(orderMapper::toResponseDto)
+                .map(orderMapper::toDto)
                 .toList();
     }
 
-    private User existingUser(Long userId) {
-        return userRepo
+    private Account existingUser(Long userId) {
+        return accountRepo
                 .findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }

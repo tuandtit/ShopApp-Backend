@@ -2,6 +2,7 @@ package com.project.shopapp.services.impl;
 
 import com.project.shopapp.dtos.requests.ProductRequest;
 import com.project.shopapp.dtos.responses.ProductImageResponse;
+import com.project.shopapp.dtos.responses.ProductListResponse;
 import com.project.shopapp.dtos.responses.ProductResponse;
 import com.project.shopapp.exceptions.AppException;
 import com.project.shopapp.exceptions.ErrorCode;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -49,12 +51,12 @@ public class ProductServiceImpl implements ProductService {
 
         Product newProduct = productMapper.toEntity(productRequest);
         newProduct.setCategory(existsCategory);
-        return productMapper.toResponseDto(productRepo.save(newProduct));
+        return productMapper.toDto(productRepo.save(newProduct));
     }
 
     @Override
     public ProductResponse getProductById(Long id) {
-        return productMapper.toResponseDto(findProductById(id));
+        return productMapper.toDto(findProductById(id));
     }
 
     private Product findProductById(Long id) {
@@ -64,11 +66,21 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Page<ProductResponse> getAllProducts(PageRequest pageRequest) {
-        //get danh sach theo trang(page) va gioi han(limit)
-        return productRepo
+    public ProductListResponse getAllProducts(int page, int limit) {
+        PageRequest pageRequest = PageRequest.of(page, limit,
+                Sort.by("createdAt").descending());
+
+        Page<ProductResponse> productPage = productRepo
                 .findAll(pageRequest)
-                .map(productMapper::toResponseDto);
+                .map(productMapper::toDto);
+
+        int totalPage = productPage.getTotalPages();
+        List<ProductResponse> products = productPage.getContent();
+
+        return ProductListResponse.builder()
+                .products(products)
+                .totalPage(totalPage)
+                .build();
     }
 
     @Override
@@ -83,7 +95,7 @@ public class ProductServiceImpl implements ProductService {
             productMapper.update(productRequest, existingProduct);
             existingProduct.setCategory(existsCategory);
 
-            return productMapper.toResponseDto(productRepo.save(existingProduct));
+            return productMapper.toDto(productRepo.save(existingProduct));
         }
         return null;
     }
@@ -129,7 +141,7 @@ public class ProductServiceImpl implements ProductService {
                     .imageUrl(fileName)
                     .build();
 
-            responseList.add(productImageMapper.toResponseDto(productImageRepo.save(newProductImage)));
+            responseList.add(productImageMapper.toDto(productImageRepo.save(newProductImage)));
         }
 
         return responseList;

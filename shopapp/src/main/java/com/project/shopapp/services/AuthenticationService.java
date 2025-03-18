@@ -1,21 +1,19 @@
 package com.project.shopapp.services;
 
-import com.nimbusds.jose.JOSEException;
-import com.project.shopapp.dtos.requests.AuthenticationRequest;
-import com.project.shopapp.dtos.requests.IntrospectRequest;
-import com.project.shopapp.dtos.requests.LogoutRequest;
-import com.project.shopapp.dtos.requests.RefreshRequest;
-import com.project.shopapp.dtos.responses.AuthenticationResponse;
-import com.project.shopapp.dtos.responses.IntrospectResponse;
+import com.project.shopapp.dtos.AccountDto;
+import com.project.shopapp.dtos.requests.SignInGoogleRequest;
+import com.project.shopapp.dtos.requests.SignInRequest;
+import com.project.shopapp.dtos.requests.SignUpRequest;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
-import java.text.ParseException;
 
 public interface AuthenticationService {
-    IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException;
+    AccountDto signUp(SignUpRequest request);
 
-    AuthenticationResponse authenticate(AuthenticationRequest request) throws JOSEException;
+    AccountDto signIn(SignInRequest request, HttpServletResponse response);
 
-    void logout(LogoutRequest request) throws ParseException, JOSEException;
+    AccountDto accessTokenByRefreshToken(HttpServletRequest req);
 
-    AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException;
+    AccountDto signInGoogle(SignInGoogleRequest request, HttpServletResponse response);
 }

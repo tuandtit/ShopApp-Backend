@@ -9,7 +9,7 @@ public interface EntityMapper<E, Q, S> {
     E toEntity(Q request);
 
     @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
-    S toResponseDto(E entity);
+    S toDto(E entity);
 
     @BeanMapping(nullValueCheckStrategy = NullValueCheckStrategy.ALWAYS)
     List<E> toEntityList(List<Q> request);
@@ -20,11 +20,6 @@ public interface EntityMapper<E, Q, S> {
             nullValueCheckStrategy = NullValueCheckStrategy.ALWAYS)
     void update(Q dto, @MappingTarget E entity);
 
-    List<S> toResponseDtoList(List<E> entities);
-
-//    @BeanMapping(
-//            nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-//            nullValueCheckStrategy = NullValueCheckStrategy.ALWAYS)
-//    void updateDto(@MappingTarget Q dto, E entity);
+    List<S> toDtoList(List<E> entities);
 }
 

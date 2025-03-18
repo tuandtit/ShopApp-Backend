@@ -1,23 +1,43 @@
 package com.project.shopapp.models;
 
+import com.project.shopapp.common.enums.ERole;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.FieldDefaults;
 
-import java.util.Set;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
-@Entity
-@Table(name = "roles")
 @Getter
 @Setter
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
-public class Role {
+@Entity
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Table(name = "roles")
+public class Role extends AbstractAuditing<Long> implements Serializable {
+
     @Id
-    private String name;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    Long id;
 
-    private String description;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "name", length = 20, nullable = false)
+    ERole name = ERole.USER;
 
-    @ManyToMany
-    private Set<Permission> permissions;
+    @ManyToMany(cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH}, fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "role_permission",
+            joinColumns = @JoinColumn(name = "permission_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    List<Permission> permissions = new ArrayList<>();
+
+    public Role() {
+    }
+
+    public Role(ERole name) {
+        this.name = name;
+    }
 }

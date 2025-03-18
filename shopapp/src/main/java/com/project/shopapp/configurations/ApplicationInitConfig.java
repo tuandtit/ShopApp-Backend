@@ -1,10 +1,10 @@
 package com.project.shopapp.configurations;
 
-import com.project.shopapp.constant.PredefinedRole;
+import com.project.shopapp.common.enums.ERole;
+import com.project.shopapp.models.Account;
 import com.project.shopapp.models.Role;
-import com.project.shopapp.models.User;
+import com.project.shopapp.repositories.AccountRepository;
 import com.project.shopapp.repositories.RoleRepository;
-import com.project.shopapp.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
@@ -14,10 +14,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.HashSet;
-
 @Slf4j
-@Configuration
+//@Configuration
 @RequiredArgsConstructor
 public class ApplicationInitConfig {
 
@@ -25,7 +23,6 @@ public class ApplicationInitConfig {
 
     @NonFinal
     static final String ADMIN_USER_NAME = "admin";
-
     @NonFinal
     static final String ADMIN_PASSWORD = "admin";
 
@@ -34,30 +31,19 @@ public class ApplicationInitConfig {
             prefix = "spring",
             value = "datasource.driverClassName",
             havingValue = "com.mysql.cj.jdbc.Driver")
-    ApplicationRunner applicationRunner(UserRepository userRepository, RoleRepository roleRepository) {
+    ApplicationRunner applicationRunner(AccountRepository accountRepository, RoleRepository roleRepository) {
         log.info("Init application ...");
         return args -> {
-            if (userRepository.findByUsername(ADMIN_USER_NAME).isEmpty()) {
-                roleRepository.save(Role.builder()
-                        .name(PredefinedRole.USER_ROLE)
-                        .description("User role")
-                        .build());
+            if (accountRepository.findByUsername(ADMIN_USER_NAME).isEmpty()) {
 
-                Role adminRole = roleRepository.save(Role.builder()
-                        .name(PredefinedRole.ADMIN_ROLE)
-                        .description("Admin role")
-                        .build());
+                Role adminRole = roleRepository.save(new Role(ERole.ADMIN));
 
-                var roles = new HashSet<Role>();
-                roles.add(adminRole);
+                Account account = new Account();
+                account.setUsername(ADMIN_USER_NAME);
+                account.setPasswordHash(passwordEncoder.encode(ADMIN_PASSWORD));
+                account.addRole(adminRole);
 
-                User user = User.builder()
-                        .username(ADMIN_USER_NAME)
-                        .password(passwordEncoder.encode(ADMIN_PASSWORD))
-                        .roles(roles)
-                        .build();
-
-                userRepository.save(user);
+                accountRepository.save(account);
                 log.info("admin user has been created with default password: admin, please change it");
             }
             log.info("Application initialization completed .....");
